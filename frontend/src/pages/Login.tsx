@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Leaf, Mail, Lock, User, Building, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../config';
 
 const ROLE_INFO = {
   Applicant: { desc: 'Organizations submitting EIA reports for project clearance.', color: 'emerald' },
@@ -34,7 +35,7 @@ export default function Login() {
         ? { email, password }
         : { name, email, password, role, organization };
 
-      const res = await fetch(endpoint, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

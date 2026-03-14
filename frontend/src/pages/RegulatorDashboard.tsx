@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config';
 import { motion } from 'motion/react';
 import { AlertTriangle, CheckCircle2, Clock, FileSearch, ShieldAlert, ChevronRight, BrainCircuit } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -29,7 +30,7 @@ function RegulatorHome() {
   const { token } = useAuth();
 
   useEffect(() => {
-    fetch('/api/projects', {
+    fetch(`${API_BASE_URL}/api/projects`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -40,7 +41,7 @@ function RegulatorHome() {
 
   const handleStatusUpdate = async (id: number, status: string) => {
     try {
-      await fetch(`/api/projects/${id}/status`, {
+      await fetch(`${API_BASE_URL}/api/projects/${id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

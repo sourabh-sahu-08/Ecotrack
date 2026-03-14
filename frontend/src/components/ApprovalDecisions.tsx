@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config';
 import { motion } from 'motion/react';
 import { CheckCircle2, XCircle, Info, MessageSquare, History, BrainCircuit, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -29,7 +30,7 @@ export default function ApprovalDecisions() {
   const { token } = useAuth();
 
   useEffect(() => {
-    fetch('/api/projects', {
+    fetch(`${API_BASE_URL}/api/projects`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -42,7 +43,7 @@ export default function ApprovalDecisions() {
 
   useEffect(() => {
     if (selectedProject) {
-      fetch(`/api/projects/${selectedProject.id}/decisions`, {
+      fetch(`${API_BASE_URL}/api/projects/${selectedProject.id}/decisions`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -58,7 +59,7 @@ export default function ApprovalDecisions() {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${selectedProject.id}/status`, {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${selectedProject.id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Upload, FileText, CheckCircle, AlertCircle, Clock, ChevronRight,
@@ -17,7 +18,7 @@ function MyApplications() {
   const { token, user } = useAuth();
 
   useEffect(() => {
-    fetch('/api/projects', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE_URL}/api/projects`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => {
         const mine = data.filter((p: any) =>
@@ -158,7 +159,7 @@ function SubmitProject() {
     const tick = setInterval(() => setUploadProgress(p => Math.min(p + 15, 90)), 150);
 
     try {
-      const res = await fetch('/api/projects', {
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...form, applicant: user?.organization || user?.name, lat: parseFloat(form.lat) || 20.5, lng: parseFloat(form.lng) || 78.9 }),
@@ -177,7 +178,7 @@ function SubmitProject() {
     setUploadProgress(0);
     const tick = setInterval(() => setUploadProgress(p => Math.min(p + 20, 90)), 200);
     try {
-      const res = await fetch('/api/projects', {
+      const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -374,7 +375,7 @@ function ComplianceReports() {
   const { token, user } = useAuth();
 
   useEffect(() => {
-    fetch('/api/projects', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_BASE_URL}/api/projects`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => {
         const mine = data.filter((p: any) =>
@@ -573,7 +574,7 @@ function ApplicantHome() {
   const { token, user } = useAuth();
 
   useEffect(() => {
-    fetch('/api/projects', {
+    fetch(`${API_BASE_URL}/api/projects`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -608,7 +609,7 @@ function ApplicantHome() {
         const lat = 20 + Math.random() * 10;
         const lng = 70 + Math.random() * 15;
 
-        const res = await fetch('/api/projects', {
+        const res = await fetch(`${API_BASE_URL}/api/projects`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -625,7 +626,7 @@ function ApplicantHome() {
 
         if (res.ok) {
           // Refresh projects
-          const updatedRes = await fetch('/api/projects', {
+          const updatedRes = await fetch(`${API_BASE_URL}/api/projects`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           const data = await updatedRes.json();
@@ -816,7 +817,7 @@ function PermissionAdvisor() {
     if (!idea.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/permission-advisor', {
+      const res = await fetch(`${API_BASE_URL}/api/ai/permission-advisor`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ idea })
@@ -917,7 +918,7 @@ function ImpactSimulation() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/pollution-predictor', {
+      const res = await fetch(`${API_BASE_URL}/api/ai/pollution-predictor`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ projectData })
@@ -1074,7 +1075,7 @@ Regulator 1: Great. Once we have that, we can move to the final approval stage.`
   const handleGenerateGist = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/meeting-gist', {
+      const res = await fetch(`${API_BASE_URL}/api/ai/meeting-gist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ transcript: mockTranscript })

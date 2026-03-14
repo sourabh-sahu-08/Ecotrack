@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../config';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, X, Send, Globe2 } from 'lucide-react';
 
@@ -31,7 +32,7 @@ export default function Chatbot() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/ai/chat', {
+      const res = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg, language })

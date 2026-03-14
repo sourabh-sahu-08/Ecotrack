@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_BASE_URL } from '../config';
 import { FileText, Search, BrainCircuit, AlertCircle, CheckCircle, ChevronRight, Download, MessageSquare, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -24,7 +25,7 @@ export default function ReviewDocuments() {
     setAnalyzing(true);
     setAnalysisResult(null);
     try {
-      const res = await fetch('/api/ai/analyze-document', {
+      const res = await fetch(`${API_BASE_URL}/api/ai/analyze-document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ pdfUrl: selectedDoc.name })

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config';
 import { MapContainer, TileLayer, Marker, Popup, Circle, LayersControl, LayerGroup, Polygon } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -33,7 +34,7 @@ export default function RegulatorMap() {
   const { token } = useAuth();
 
   useEffect(() => {
-    fetch('/api/projects', {
+    fetch(`${API_BASE_URL}/api/projects`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

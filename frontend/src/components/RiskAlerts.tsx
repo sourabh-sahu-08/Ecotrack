@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config';
 import { motion } from 'motion/react';
 import { AlertTriangle, ShieldAlert, Zap, MapPin, ExternalLink, Bell, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +19,7 @@ export default function RiskAlerts() {
   const { token } = useAuth();
 
   useEffect(() => {
-    fetch('/api/alerts', {
+    fetch(`${API_BASE_URL}/api/alerts`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

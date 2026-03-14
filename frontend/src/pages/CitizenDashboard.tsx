@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -39,7 +40,7 @@ function CitizenHome() {
   const { token } = useAuth();
 
   useEffect(() => {
-    fetch('/api/projects', {
+    fetch(`${API_BASE_URL}/api/projects`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -61,7 +62,7 @@ function CitizenHome() {
     
     setSubmittingComment(true);
     try {
-      await fetch(`/api/projects/${projectId}/comments`, {
+      await fetch(`${API_BASE_URL}/api/projects/${projectId}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -230,7 +231,7 @@ function ProjectExplorer() {
   const [statusFilter, setStatusFilter] = useState("All");
 
   useEffect(() => {
-    fetch('/api/projects', {
+    fetch(`${API_BASE_URL}/api/projects`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
       .then(res => res.json())
@@ -349,7 +350,7 @@ function PublicComments() {
   const [verificationResult, setVerificationResult] = useState<any>(null);
 
   useEffect(() => {
-    fetch('/api/projects', {
+    fetch(`${API_BASE_URL}/api/projects`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
       .then(res => res.json())
@@ -361,7 +362,7 @@ function PublicComments() {
     setIsSubmitting(true);
     
     try {
-      const res = await fetch('/api/ai/verify-complaint', {
+      const res = await fetch(`${API_BASE_URL}/api/ai/verify-complaint`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({

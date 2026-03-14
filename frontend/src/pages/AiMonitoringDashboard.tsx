@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { API_BASE_URL } from '../config';
 import { Satellite, Activity, Wind, Droplets, AlertTriangle, ShieldCheck, Map as MapIcon, Radio, MapPin, Zap, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,7 +10,7 @@ export default function AiMonitoringDashboard() {
   const [activeTab, setActiveTab] = useState<'iot' | 'satellite' | 'compliance'>('iot');
 
   useEffect(() => {
-    fetch('/api/monitoring/data', {
+    fetch(`${API_BASE_URL}/api/monitoring/data`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(r => r.json())
@@ -18,7 +19,7 @@ export default function AiMonitoringDashboard() {
 
     // Simulated real-time polling
     const interval = setInterval(() => {
-      fetch('/api/monitoring/data', { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch(`${API_BASE_URL}/api/monitoring/data`, { headers: { 'Authorization': `Bearer ${token}` } })
         .then(r => r.json())
         .then(d => setData(d));
     }, 15000);

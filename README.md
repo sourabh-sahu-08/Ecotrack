@@ -43,18 +43,24 @@ EcoTrack (PARIVESH 3.0) is a next-generation environmental clearance platform de
    npm run dev
    ```
 
-## 🌐 Deployment (Render)
+## 🌐 Deployment
 
-This project is configured for a **Single Web Service** deployment on Render:
-
+### Backend (Render)
+The backend is configured for deployment on Render.
 - **Build Command**: `npm install; npm run build`
 - **Start Command**: `npm start`
-- **Port**: Automatic (via `PORT` env var)
+- **Environment Variables**:
+  - `GEMINI_API_KEY`: Your Google Gemini API Key
+  - `JWT_SECRET`: A secure string for JWT tokens
+  - `NODE_ENV`: `production`
 
-### Required Environment Variables
-- `GEMINI_API_KEY`: Your Google Gemini API Key
-- `JWT_SECRET`: A secure string for JWT tokens
-- `NODE_ENV`: `production`
+### Frontend (Vercel)
+The frontend can be deployed separately on Vercel for better performance and scaling.
+1. Connect your GitHub repository to Vercel.
+2. Set the **Root Directory** to `frontend`.
+3. Configure the following **Environment Variables**:
+   - `VITE_API_URL`: The full URL of your deployed backend on Render (e.g., `https://ecotrack-backend.onrender.com`).
+4. Vercel will automatically detect the Vite configuration and deploy the app.
 
 ---
 *© 2026 EcoTrack · Developed for Environmental Efficiency.*

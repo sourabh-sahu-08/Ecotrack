@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, ChevronRight, FileText, BrainCircuit, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +23,7 @@ export default function PendingApplications() {
   const { token } = useAuth();
 
   useEffect(() => {
-    fetch('/api/projects', {
+    fetch(`${API_BASE_URL}/api/projects`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -206,7 +207,7 @@ export default function PendingApplications() {
                   <div className="pt-8 flex gap-4">
                     <button 
                       onClick={async () => {
-                        const res = await fetch(`/api/projects/${selectedProject.id}/status`, {
+                        const res = await fetch(`${API_BASE_URL}/api/projects/${selectedProject.id}/status`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                           body: JSON.stringify({ status: 'Approved' })
@@ -222,7 +223,7 @@ export default function PendingApplications() {
                     </button>
                     <button 
                       onClick={async () => {
-                        const res = await fetch(`/api/projects/${selectedProject.id}/status`, {
+                        const res = await fetch(`${API_BASE_URL}/api/projects/${selectedProject.id}/status`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                           body: JSON.stringify({ status: 'Rejected' })
