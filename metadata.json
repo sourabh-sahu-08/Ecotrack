@@ -1,0 +1,5 @@
+{
+  "name": "EcoTrack",
+  "description": "An AI-powered environmental clearance portal featuring GIS maps, AI risk scoring, and community participation.",
+  "requestFramePermissions": ["geolocation"]
+}
