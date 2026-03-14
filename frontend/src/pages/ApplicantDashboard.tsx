@@ -1,14 +1,101 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Upload, FileText, CheckCircle, AlertCircle, Clock, ChevronRight,
-  Search, Download, Bell, BellDot, Shield, Send,
-  Calendar, BarChart2, Leaf, XCircle, Info, Compass, Droplets, Wind, Focus, Zap, Users, Play, Pause, Camera
+  FileText, CheckCircle, AlertCircle, Clock, Search, Calendar, XCircle, Send, Upload, ChevronRight, BarChart2, Shield, Download, Bell, BellDot, Leaf, Compass, Zap, Focus, Info, Layout, Activity, Menu, X
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../context/AuthContext';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { PROJECT_CATEGORIES } from '../constants/checklists';
+import { WorkflowTimeline, DocumentChecklist, getProjectCategory, getProjectStage } from '../components/ClearanceControls';
+
+function ApplicantHome() {
+  const { user, token } = useAuth();
+  const [stats, setStats] = useState({ total: 0, approved: 0, pending: 0, news: 0 });
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/projects`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => {
+        const mine = data.filter((p: any) => p.applicant === user?.organization || p.applicant === user?.name);
+        setStats({
+          total: mine.length,
+          approved: mine.filter((p: any) => p.status === 'Approved').length,
+          pending: mine.filter((p: any) => p.status === 'Pending').length,
+          news: 2 // Mock
+        });
+      }).catch(() => {});
+  }, [token, user]);
+
+  return (
+    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-10">
+      <header className="relative py-12 px-8 rounded-3xl bg-zinc-900 overflow-hidden group border border-zinc-800">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[100px] -mr-48 -mt-48 group-hover:bg-emerald-500/20 transition-colors duration-700" />
+        <div className="relative z-10">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-widest mb-4">Welcome Back, {user?.role}</span>
+            <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">
+              Hello, <span className="text-emerald-500">{user?.name || 'Applicant'}</span>
+            </h1>
+            <p className="text-zinc-400 max-w-xl text-lg leading-relaxed">
+              Your environmental clearance dashboard is ready. You have <span className="text-white font-bold">{stats.pending}</span> applications awaiting review.
+            </p>
+          </motion.div>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Total Projects', val: stats.total, icon: Layout, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+          { label: 'Approved', val: stats.approved, icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+          { label: 'Pending Review', val: stats.pending, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+          { label: 'Risk Alerts', val: stats.news, icon: Activity, color: 'text-red-400', bg: 'bg-red-500/10' },
+        ].map((s, i) => (
+          <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+            className="group bg-zinc-900 border border-zinc-800 p-6 rounded-3xl hover:border-zinc-700 transition-all">
+            <div className={`w-12 h-12 ${s.bg} rounded-2xl flex items-center justify-center ${s.color} mb-4 group-hover:scale-110 transition-transform`}>
+              <s.icon size={24} />
+            </div>
+            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-1">{s.label}</p>
+            <p className="text-3xl font-black text-white">{s.val}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+           <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                 <Focus size={18} className="text-emerald-500" /> Recent Activity
+              </h2>
+           </div>
+           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center">
+              <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                 <Shield size={32} className="text-zinc-600" />
+              </div>
+              <p className="text-zinc-500">No recent activity detected in the last 24 hours.</p>
+           </div>
+        </div>
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Bell size={18} className="text-emerald-500" /> Quick Actions
+          </h2>
+          <div className="space-y-3">
+             <Link to="/applicant/submit" className="flex items-center justify-between p-5 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-white transition-all group">
+                <span className="font-bold">Submit New Project</span>
+                <Send size={18} className="group-hover:translate-x-1 transition-transform" />
+             </Link>
+             <Link to="/applicant/projects" className="flex items-center justify-between p-5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl text-white transition-all group">
+                <span className="font-bold">Track Applications</span>
+                <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform text-zinc-600" />
+             </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── My Applications ─────────────────────────────────────────────────────────
 function MyApplications() {
@@ -16,6 +103,10 @@ function MyApplications() {
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
   const { token, user } = useAuth();
+
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [reports, setReports] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/projects`, { headers: { Authorization: `Bearer ${token}` } })
@@ -25,7 +116,10 @@ function MyApplications() {
           p.applicant === user?.organization || p.applicant === user?.name
         );
         setProjects(mine);
-      });
+      }).catch(() => {});
+    
+    fetch(`${API_BASE_URL}/api/reports`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(setReports).catch(() => {});
+    fetch(`${API_BASE_URL}/api/alerts`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(setAlerts).catch(() => {});
   }, [token, user]);
 
   const statuses = ['All', 'Pending', 'Under Review', 'Approved', 'Rejected'];
@@ -53,7 +147,6 @@ function MyApplications() {
         <p className="text-zinc-400 text-sm">Track the status of your environmental clearance submissions.</p>
       </header>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -79,7 +172,6 @@ function MyApplications() {
         </div>
       </div>
 
-      {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'Total', val: projects.length, color: 'text-white' },
@@ -94,7 +186,6 @@ function MyApplications() {
         ))}
       </div>
 
-      {/* Application cards */}
       <div className="space-y-3">
         <AnimatePresence>
           {filtered.length === 0 ? (
@@ -108,33 +199,77 @@ function MyApplications() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl p-5 flex items-start justify-between gap-4 transition-colors"
+              className={`bg-zinc-900 border rounded-2xl overflow-hidden transition-all ${
+                expandedId === app.id ? 'border-emerald-500/50 ring-1 ring-emerald-500/20' : 'border-zinc-800 hover:border-zinc-700'
+              }`}
             >
-              <div className="flex items-start gap-4 min-w-0">
-                <div className="p-3 bg-zinc-800 rounded-xl shrink-0">
-                  <FileText size={20} className="text-zinc-400" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-zinc-100 truncate">{app.title}</h3>
-                  <div className="flex flex-wrap items-center gap-3 mt-1">
-                    <span className="text-xs text-zinc-500 flex items-center gap-1">
-                      <Calendar size={11} /> {new Date(app.createdAt).toLocaleDateString()}
-                    </span>
-                    {app.riskScore !== undefined && (
-                      <span className={`text-xs flex items-center gap-1 ${
-                        app.riskScore >= 70 ? 'text-red-400' :
-                        app.riskScore >= 40 ? 'text-amber-400' : 'text-emerald-400'
-                      }`}>
-                        <BarChart2 size={11} /> Risk: {app.riskScore}/100
+              <div 
+                onClick={() => setExpandedId(expandedId === app.id ? null : app.id)}
+                className="p-5 flex items-start justify-between gap-4 cursor-pointer"
+              >
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className={`p-3 rounded-xl shrink-0 transition-colors ${expandedId === app.id ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                    <FileText size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-zinc-100 truncate">{app.title}</h3>
+                    <div className="flex flex-wrap items-center gap-3 mt-1">
+                      <span className="text-xs text-zinc-500 flex items-center gap-1">
+                        <Calendar size={11} /> {new Date(app.createdAt).toLocaleDateString()}
                       </span>
-                    )}
+                      <span className="text-[10px] px-2 py-0.5 bg-zinc-800 text-zinc-500 rounded font-bold uppercase tracking-wider">
+                        {getProjectCategory(app.description)}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center gap-4">
+                  <div className="hidden sm:block text-right">
+                    <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Stage</div>
+                    <div className="text-xs font-medium text-zinc-300">{getProjectStage(app, alerts)}</div>
+                  </div>
+                  <span className={`shrink-0 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border ${statusColor(app.status)}`}>
+                    <StatusIcon s={app.status} />
+                    {app.status}
+                  </span>
+                </div>
               </div>
-              <span className={`shrink-0 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border ${statusColor(app.status)}`}>
-                <StatusIcon s={app.status} />
-                {app.status}
-              </span>
+
+              {expandedId === app.id && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }} 
+                  animate={{ height: 'auto', opacity: 1 }}
+                  className="px-5 pb-6 border-t border-zinc-800 bg-zinc-950/30"
+                >
+                  <WorkflowTimeline stage={getProjectStage(app, alerts)} />
+                  
+                  <div className="mt-8 space-y-6">
+                    <DocumentChecklist 
+                      category={getProjectCategory(app.description)} 
+                      projectFiles={reports.filter((r: any) => r.projectId === app.id)} 
+                    />
+
+                    {alerts.filter(a => a.projectId === app.id && a.severity === 'Deficiency').length > 0 && (
+                      <div className="pt-4 border-t border-zinc-800">
+                        <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <AlertCircle size={14} /> Deficiencies Raised
+                        </h3>
+                        <div className="space-y-3">
+                          {alerts.filter(a => a.projectId === app.id && a.severity === 'Deficiency').map((a, i) => (
+                            <div key={i} className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-sm text-zinc-200 font-medium">{a.message}</p>
+                                <p className="text-[10px] text-zinc-500 mt-1">Raised on {new Date(a.createdAt).toLocaleDateString()}</p>
+                              </div>
+                              <button className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-300 rounded-lg hover:bg-zinc-800">Resolve</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>
@@ -145,7 +280,7 @@ function MyApplications() {
 
 // ─── Submit Project ───────────────────────────────────────────────────────────
 function SubmitProject() {
-  const [form, setForm] = useState({ title: '', description: '', lat: '', lng: '', type: 'Infrastructure', area: '', forestLand: 'No', waterUsage: '', cost: '', employment: '', distProtectedArea: '', emissions: 'None', wastewater: '', solidWaste: '' });
+  const [form, setForm] = useState({ title: '', description: '', lat: '', lng: '', type: 'Infrastructure', category: PROJECT_CATEGORIES[0], area: '', forestLand: 'No', waterUsage: '', cost: '', employment: '', distProtectedArea: '', emissions: 'None', wastewater: '', solidWaste: '' });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -162,7 +297,13 @@ function SubmitProject() {
       const res = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...form, applicant: user?.organization || user?.name, lat: parseFloat(form.lat) || 20.5, lng: parseFloat(form.lng) || 78.9 }),
+        body: JSON.stringify({ 
+          ...form, 
+          description: `[Category: ${form.category}] ${form.description}`,
+          applicant: user?.organization || user?.name, 
+          lat: parseFloat(form.lat) || 20.5, 
+          lng: parseFloat(form.lng) || 78.9 
+        }),
       });
       if (res.ok) { setUploadProgress(100); setTimeout(() => setSubmitted(true), 400); }
     } finally {
@@ -205,7 +346,7 @@ function SubmitProject() {
         <CheckCircle size={48} className="mx-auto text-emerald-400 mb-4" />
         <h2 className="text-2xl font-bold text-white mb-2">Project Submitted!</h2>
         <p className="text-zinc-400 mb-6 text-sm">Your project has been received and queued for AI risk analysis and regulator review.</p>
-        <button onClick={() => { setSubmitted(false); setForm({ title: '', description: '', lat: '', lng: '', type: 'Infrastructure', area: '', forestLand: 'No', waterUsage: '', cost: '', employment: '', distProtectedArea: '', emissions: 'None', wastewater: '', solidWaste: '' }); }}
+        <button onClick={() => { setSubmitted(false); setForm({ title: '', description: '', lat: '', lng: '', type: 'Infrastructure', category: PROJECT_CATEGORIES[0], area: '', forestLand: 'No', waterUsage: '', cost: '', employment: '', distProtectedArea: '', emissions: 'None', wastewater: '', solidWaste: '' }); }}
           className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors">
           Submit Another
         </button>
@@ -221,7 +362,6 @@ function SubmitProject() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Manual Form */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <h2 className="text-base font-semibold text-white mb-5 flex items-center gap-2">
             <Send size={16} className="text-emerald-400" /> Fill Project Details
@@ -240,14 +380,10 @@ function SubmitProject() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Project Type</label>
-                <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Project Category</label>
+                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value, type: e.target.value.includes('Projects') ? 'Infrastructure' : 'Mining' }))}
                   className="w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50">
-                  <option>Infrastructure</option>
-                  <option>Mining</option>
-                  <option>Energy</option>
-                  <option>Manufacturing</option>
-                  <option>Others</option>
+                  {PROJECT_CATEGORIES.map(cat => <option key={cat}>{cat}</option>)}
                 </select>
               </div>
               <div>
@@ -344,7 +480,6 @@ function SubmitProject() {
           </form>
         </div>
 
-        {/* PDF Drop */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col">
           <h2 className="text-base font-semibold text-white mb-5 flex items-center gap-2">
             <Upload size={16} className="text-emerald-400" /> Upload EIA PDF
@@ -382,7 +517,7 @@ function ComplianceReports() {
           p.applicant === user?.organization || p.applicant === user?.name
         );
         setProjects(mine);
-      });
+      }).catch(() => {});
   }, [token, user]);
 
   const riskColor = (score: number) =>
@@ -427,7 +562,6 @@ function ComplianceReports() {
                 </div>
               </div>
 
-              {/* Risk bar */}
               <div className="mb-4">
                 <div className="flex justify-between text-xs text-zinc-500 mb-1.5">
                   <span>Risk Score</span><span>{p.riskScore ?? 0}/100</span>
@@ -534,7 +668,7 @@ function Notifications() {
 
       <div className="space-y-3">
         {items.map((n, i) => {
-          const Icon = n.icon;
+          const Icon = n.icon as any;
           return (
             <motion.div key={n.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
               onClick={() => setItems(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
@@ -560,614 +694,102 @@ function Notifications() {
   );
 }
 
-interface Project {
-  id: number;
-  title: string;
-  status: string;
-  createdAt: string;
-}
+// ─── Main Dashboard ──────────────────────────────────────────────────────────
+export default function ApplicantDashboard() {
+  const { user, logout } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-function ApplicantHome() {
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const { token, user } = useAuth();
-
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/projects`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        // Filter projects for the current applicant
-        const myProjects = data.filter((p: any) => p.applicant === user?.organization || p.applicant === user?.name);
-        setProjects(myProjects);
-      });
-  }, [token, user]);
-
-  const onDrop = async (acceptedFiles: File[]) => {
-    setIsUploading(true);
-    let progress = 0;
-    
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      progress += 20;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-      }
-    }, 200);
-
-    // Simulate file processing and API call
-    setTimeout(async () => {
-      try {
-        const file = acceptedFiles[0];
-        const title = file.name.replace('.pdf', '') + ' Project';
-        const description = `Environmental Impact Assessment for ${title}. Uploaded document: ${file.name}.`;
-        
-        // Random coordinates for demo
-        const lat = 20 + Math.random() * 10;
-        const lng = 70 + Math.random() * 15;
-
-        const res = await fetch(`${API_BASE_URL}/api/projects`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            title,
-            description,
-            applicant: user?.organization || user?.name,
-            lat,
-            lng
-          })
-        });
-
-        if (res.ok) {
-          // Refresh projects
-          const updatedRes = await fetch(`${API_BASE_URL}/api/projects`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const data = await updatedRes.json();
-          const myProjects = data.filter((p: any) => p.applicant === user?.organization || p.applicant === user?.name);
-          setProjects(myProjects);
-        }
-      } catch (error) {
-        console.error('Failed to submit project:', error);
-      } finally {
-        setIsUploading(false);
-        setUploadProgress(0);
-      }
-    }, 1500);
-  };
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
-    onDrop,
-    multiple: false,
-    onDragEnter: () => {},
-    onDragOver: () => {},
-    onDragLeave: () => {}
-  } as any);
-
+  // Use sub-components as pages
   return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto space-y-8 fade-up">
-      {/* Welcome Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs text-zinc-500 uppercase font-medium tracking-widest mb-1">Applicant Workspace</p>
-          <h1 className="text-3xl font-bold text-white">
-            Hello, <span className="gradient-text">{user?.name?.split(' ')[0] || 'there'}</span> 👋
-          </h1>
-          <p className="text-zinc-500 text-sm mt-1">Manage your environmental clearance applications.</p>
+    <div className="min-h-screen bg-black text-zinc-400 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+      
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 w-full z-50 bg-black/80 backdrop-blur-xl border-b border-zinc-800/50 p-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
+            <Leaf size={18} />
+          </div>
+          <span className="font-black text-white tracking-widest uppercase italic text-sm">EcoTrack</span>
         </div>
-        <div className="flex gap-3">
-          {[
-            { val: projects.length, label: 'Total', color: 'text-white' },
-            { val: projects.filter(p => p.status === 'Approved').length, label: 'Approved', color: 'text-emerald-400' },
-            { val: projects.filter(p => p.status === 'Pending').length, label: 'Pending', color: 'text-amber-400' },
-          ].map(({ val, label, color }) => (
-            <div key={label} className="glass rounded-2xl px-4 py-3 text-center border border-white/6 min-w-[72px]">
-              <p className={`text-2xl font-bold ${color}`}>{val}</p>
-              <p className="text-[11px] text-zinc-600 mt-0.5">{label}</p>
-            </div>
-          ))}
-        </div>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Upload & Actions */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Upload Area */}
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-              <Upload size={16} className="text-emerald-400" /> Submit New EIA Report
-            </h2>
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-xl p-10 text-center transition-all cursor-pointer ${
-                isDragActive ? 'border-emerald-500 bg-emerald-500/5 scale-[1.01]' : 'border-zinc-800 hover:border-zinc-600 bg-zinc-950/40'
-              }`}
-            >
-              <input {...getInputProps()} />
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors ${isDragActive ? 'bg-emerald-500/15' : 'bg-zinc-800'}`}>
-                <Upload className={isDragActive ? 'text-emerald-400' : 'text-zinc-400'} size={26} />
-              </div>
-              <p className="text-zinc-200 font-medium mb-1">{isDragActive ? 'Release to upload!' : 'Drag & drop your EIA PDF here'}</p>
-              <p className="text-zinc-600 text-sm">or click to browse files</p>
-            </div>
-
-            {isUploading && (
-              <div className="mt-5 space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-zinc-400 flex items-center gap-1.5">
-                    <div className="w-3 h-3 border border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                    Uploading & AI Analyzing...
-                  </span>
-                  <span className="text-emerald-400 font-semibold">{uploadProgress}%</span>
-                </div>
-                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                  <motion.div className="h-full risk-low rounded-full" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Active Applications */}
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-              <FileText size={16} className="text-zinc-400" /> Active Applications
-            </h2>
-            <div className="space-y-3">
-              {projects.length > 0 ? projects.map((app, i) => (
-                <motion.div key={app.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                  className="card-hover flex items-center justify-between p-4 bg-zinc-950/70 rounded-xl border border-zinc-800/50 cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-zinc-800 shrink-0">
-                      <FileText className="text-zinc-400" size={17} />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-zinc-100 text-sm">{app.title}</h3>
-                      <p className="text-xs text-zinc-600 mt-0.5">Submitted {new Date(app.createdAt).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-lg ${
-                      app.status === 'Approved' ? 'text-emerald-400 bg-emerald-500/10' :
-                      app.status === 'Rejected' ? 'text-red-400 bg-red-500/10' :
-                      'text-amber-400 bg-amber-500/10'
-                    }`}>{app.status}</span>
-                    <ChevronRight size={16} className="text-zinc-700" />
-                  </div>
-                </motion.div>
-              )) : (
-                <div className="text-center py-12">
-                  <Upload size={28} className="mx-auto text-zinc-700 mb-3" />
-                  <p className="text-zinc-500 text-sm">No applications yet. Drop an EIA PDF above to get started.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* AI Document Verifier */}
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 bg-indigo-500/10 rounded-lg">
-                <FileText className="text-indigo-400" size={16} />
-              </div>
-              <h2 className="text-sm font-semibold text-white">AI Document Verifier</h2>
-            </div>
-            <div className="space-y-3">
-              <div className="p-3.5 bg-emerald-500/5 border border-emerald-500/15 rounded-xl">
-                <div className="flex items-start gap-2.5">
-                  <CheckCircle className="text-emerald-500 shrink-0 mt-0.5" size={14} />
-                  <div>
-                    <h4 className="text-xs font-semibold text-emerald-100">Biodiversity Section Complete</h4>
-                    <p className="text-[11px] text-emerald-600 mt-1">All required flora/fauna surveys detected.</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-3.5 bg-amber-500/5 border border-amber-500/15 rounded-xl">
-                <div className="flex items-start gap-2.5">
-                  <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={14} />
-                  <div>
-                    <h4 className="text-xs font-semibold text-amber-100">Missing Hydrology Data</h4>
-                    <p className="text-[11px] text-amber-600 mt-1">Groundwater impact assessment appears incomplete.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Timeline */}
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-white mb-5">Application Timeline</h2>
-            <div className="relative pl-5 border-l-2 border-zinc-800 space-y-5">
-              {[
-                { label: 'Document Uploaded', time: 'Today, 10:30 AM', done: true },
-                { label: 'AI Pre-screening', time: 'Today, 10:35 AM', done: true },
-                { label: 'Regulator Review', time: 'Pending', done: false },
-              ].map(({ label, time, done }) => (
-                <div key={label} className="relative">
-                  <div className={`absolute -left-[25px] top-0.5 w-3 h-3 rounded-full ring-4 ring-zinc-950 ${done ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-700'}`} />
-                  <p className={`text-sm font-medium ${done ? 'text-zinc-200' : 'text-zinc-500'}`}>{label}</p>
-                  <p className={`text-xs mt-0.5 ${done ? 'text-zinc-500' : 'text-zinc-700'}`}>{time}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Permission Advisor ───────────────────────────────────────────────────────────
-function PermissionAdvisor() {
-  const [idea, setIdea] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ approvals?: string[], advice?: string } | null>(null);
-  const { token } = useAuth();
-
-  const handleAnalyze = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!idea.trim()) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/ai/permission-advisor`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ idea })
-      });
-      const data = await res.json();
-      setResult(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="p-6 md:p-10 max-w-4xl mx-auto space-y-6 fade-up">
-      <header>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-emerald-500/10 rounded-xl">
-            <Compass className="text-emerald-400" size={24} />
-          </div>
-          <h1 className="text-3xl font-bold text-white">AI Permission Advisor</h1>
-        </div>
-        <p className="text-zinc-400">Describe your project idea, and our Groq AI will predict the necessary regulatory approvals.</p>
-      </header>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-        <form onSubmit={handleAnalyze} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Describe your project idea in detail:</label>
-            <textarea
-              required
-              value={idea}
-              onChange={(e) => setIdea(e.target.value)}
-              placeholder="e.g., We are planning to build a 50-acre solar park near the Aravalli hills, clearing about 5 acres of vegetation..."
-              rows={5}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 resize-none"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading || !idea.trim()}
-            className="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2"
-          >
-            {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Zap size={18} />}
-            {loading ? 'Analyzing Idea...' : 'Predict Required Approvals'}
-          </button>
-        </form>
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-zinc-400">
+          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
 
-      <AnimatePresence>
-        {result && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                  <CheckCircle className="text-emerald-400" size={20} />
-                  Predicted Approvals
-                </h3>
-                <ul className="space-y-3">
-                  {result.approvals?.map((approval, idx) => (
-                    <li key={idx} className="flex items-start gap-3 bg-zinc-950/50 p-3 rounded-lg border border-white/5">
-                      <div className="mt-0.5 p-1 bg-emerald-500/10 rounded-full">
-                        <CheckCircle size={14} className="text-emerald-400" />
-                      </div>
-                      <span className="text-sm text-zinc-300">{approval}</span>
-                    </li>
-                  ))}
-                  {!result.approvals?.length && <p className="text-sm text-zinc-500">No specific approvals matched.</p>}
-                </ul>
-              </div>
-
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                  <Info className="text-blue-400" size={20} />
-                  AI Rationale
-                </h3>
-                <p className="text-sm text-zinc-400 leading-relaxed bg-zinc-950/50 p-4 rounded-xl border border-white/5">
-                  {result.advice}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ─── Impact Simulation ───────────────────────────────────────────────────────────
-function ImpactSimulation() {
-  const [projectData, setProjectData] = useState({ type: 'manufacturing', area: 10, energy: 500 });
-  const [loading, setLoading] = useState(false);
-  const [prediction, setPrediction] = useState<any>(null);
-  const { token } = useAuth();
-  const [simulationActive, setSimulationActive] = useState(false);
-
-  const handlePredict = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/ai/pollution-predictor`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ projectData })
-      });
-      const data = await res.json();
-      setPrediction(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="p-6 md:p-10 max-w-6xl mx-auto space-y-6 fade-up">
-      <header>
-        <h1 className="text-3xl font-bold text-white mb-2">Environmental Impact Simulation</h1>
-        <p className="text-zinc-400">Predict pollution metrics and visualize satellite-based land use change before submission.</p>
-      </header>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Pollution Predictor Form */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Focus className="text-blue-400" size={18} /> Pollution Risk Predictor
-          </h2>
-          <form onSubmit={handlePredict} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Project Type</label>
-                <select
-                  value={projectData.type}
-                  onChange={e => setProjectData({ ...projectData, type: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
-                >
-                  <option value="manufacturing">Manufacturing Plant</option>
-                  <option value="mining">Mining Operation</option>
-                  <option value="solar">Solar Farm</option>
-                  <option value="infrastructure">Infrastructure/Highway</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Area (Hectares)</label>
-                <input
-                  type="number"
-                  value={projectData.area}
-                  onChange={e => setProjectData({ ...projectData, area: Number(e.target.value) })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
-                />
-              </div>
+      {/* Sidebar Navigation */}
+      <aside className={`fixed top-0 left-0 z-40 w-72 h-screen transition-transform border-r border-zinc-800/50 bg-black/80 backdrop-blur-xl ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="flex flex-col h-full p-6">
+          <div className="flex items-center gap-3 mb-10 px-2 group">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform duration-300">
+              <Leaf size={22} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Est. Energy Usage (MWh/yr)</label>
-              <input
-                type="number"
-                value={projectData.energy}
-                onChange={e => setProjectData({ ...projectData, energy: Number(e.target.value) })}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium rounded-xl transition-all"
-            >
-              {loading ? 'Running AI Model...' : 'Generate Prediction'}
-            </button>
-          </form>
-
-          {prediction && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-6 pt-6 border-t border-zinc-800 grid grid-cols-3 gap-4">
-              <div className="bg-zinc-950 border border-white/5 rounded-xl p-4 text-center">
-                <Wind className="mx-auto text-amber-400 mb-2" size={20} />
-                <div className="text-2xl font-bold text-white">{prediction.air || 0}</div>
-                <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Air Risk</div>
-              </div>
-              <div className="bg-zinc-950 border border-white/5 rounded-xl p-4 text-center">
-                <Droplets className="mx-auto text-blue-400 mb-2" size={20} />
-                <div className="text-2xl font-bold text-white">{prediction.water || 0}</div>
-                <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Water Risk</div>
-              </div>
-              <div className="bg-zinc-950 border border-white/5 rounded-xl p-4 text-center">
-                <Leaf className="mx-auto text-emerald-400 mb-2" size={20} />
-                <div className="text-2xl font-bold text-white">{prediction.co2 || 0}t</div>
-                <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">CO2/yr</div>
-              </div>
-              <div className="col-span-3 bg-blue-500/10 p-3 rounded-lg border border-blue-500/20 text-xs text-blue-100 flex gap-2">
-                <Info size={14} className="shrink-0 mt-0.5 text-blue-400" />
-                <span>{prediction.summary}</span>
-              </div>
-            </motion.div>
-          )}
-        </div>
-
-        {/* Satellite Visualizer */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Camera className="text-emerald-400" size={18} /> Before vs After Simulation
-            </h2>
-            <button
-              onClick={() => setSimulationActive(!simulationActive)}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              {simulationActive ? <Pause size={14} /> : <Play size={14} />}
-              {simulationActive ? 'Stop' : 'Simulate'}
-            </button>
-          </div>
-
-          <div className="flex-1 min-h-[300px] relative rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 group">
-            {/* Base "Before" Layer */}
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-center" />
-            
-            {/* Overlay "After" Layer */}
-            <motion.div
-              className="absolute inset-y-0 left-0 bg-[url('https://images.unsplash.com/photo-1498084393753-b411b2d26f34?q=80&w=1000&auto=format&fit=crop')] bg-cover bg-left"
-              initial={{ width: '0%' }}
-              animate={{ width: simulationActive ? '100%' : '50%' }}
-              transition={{ duration: simulationActive ? 3 : 0.5, ease: 'easeInOut', repeat: simulationActive ? Infinity : 0, repeatType: 'reverse' }}
-            >
-              {/* Slider Line */}
-              <div className="absolute top-0 bottom-0 right-0 w-1 bg-emerald-500 shadow-[0_0_10px_#10b981]" />
-            </motion.div>
-            
-            {/* Labels */}
-            <div className="absolute top-4 left-4 px-2 py-1 bg-black/60 backdrop-blur rounded text-[10px] font-bold text-white uppercase tracking-widest">
-              Present (Forest)
-            </div>
-            <div className="absolute top-4 right-4 px-2 py-1 bg-black/60 backdrop-blur rounded text-[10px] font-bold text-white uppercase tracking-widest">
-              Predicted (Development)
+              <span className="text-lg font-black text-white tracking-widest uppercase italic">EcoTrack</span>
+              <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-tighter -mt-1">Regulator-AI System</div>
             </div>
           </div>
-          <p className="text-xs text-zinc-500 mt-4 text-center">
-            Simulated visual impact based on project coordinates and development area footprint.
-          </p>
+
+          <nav className="flex-1 space-y-1">
+            {[
+              { label: 'Overview', icon: Focus, path: '/applicant' },
+              { label: 'Track Applications', icon: Compass, path: '/applicant/projects' },
+              { label: 'Submit New EIA', icon: Send, path: '/applicant/submit' },
+              { label: 'Risk Analysis', icon: BarChart2, path: '/applicant/reports' },
+              { label: 'Notifications', icon: Bell, path: '/applicant/notifications' },
+            ].map((item) => (
+              <Routes key={item.path}>
+                <Route path="*" element={
+                  <Navigate to={item.path} />
+                }/>
+              </Routes>
+            ))}
+            
+            <Link to="/applicant" className="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-400 hover:bg-zinc-900/50 transition-all group">
+               <Focus size={18} className="group-hover:text-emerald-400" /> <span className="text-sm font-medium">Overview</span>
+            </Link>
+            <Link to="/applicant/projects" className="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-400 hover:bg-zinc-900/50 transition-all group">
+               <Compass size={18} className="group-hover:text-emerald-400" /> <span className="text-sm font-medium">My Applications</span>
+            </Link>
+            <Link to="/applicant/submit" className="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-400 hover:bg-zinc-900/50 transition-all group">
+               <Send size={18} className="group-hover:text-emerald-400" /> <span className="text-sm font-medium">Submit Project</span>
+            </Link>
+            <Link to="/applicant/reports" className="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-400 hover:bg-zinc-900/50 transition-all group">
+               <BarChart2 size={18} className="group-hover:text-emerald-400" /> <span className="text-sm font-medium">Risk Reports</span>
+            </Link>
+            <Link to="/applicant/notifications" className="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-400 hover:bg-zinc-900/50 transition-all group">
+               <Bell size={18} className="group-hover:text-emerald-400" /> <span className="text-sm font-medium">Notifications</span>
+            </Link>
+          </nav>
+
+          <div className="mt-auto pt-6 border-t border-zinc-800/50">
+            <div className="flex items-center gap-3 px-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 font-bold uppercase">
+                {user?.name?.[0] || 'A'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white truncate">{user?.name || 'Applicant'}</p>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest truncate">{user?.role || 'Applicant'}</p>
+              </div>
+            </div>
+            <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-all font-medium text-sm">
+              <Zap size={18} /> Sign Out
+            </button>
+          </div>
         </div>
-      </div>
+      </aside>
+
+      {/* Hero Content Area */}
+      <main className="lg:ml-72 min-h-screen relative p-4">
+        <Routes>
+          <Route path="/" element={<ApplicantHome />} />
+          <Route path="/projects" element={<MyApplications />} />
+          <Route path="/submit" element={<SubmitProject />} />
+          <Route path="/reports" element={<ComplianceReports />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="*" element={<Navigate to="/applicant" replace />} />
+        </Routes>
+      </main>
     </div>
   );
 }
 
-// ─── Review Meetings ───────────────────────────────────────────────────────────
-function ReviewMeetings() {
-  const [loading, setLoading] = useState(false);
-  const [gist, setGist] = useState<string | null>(null);
-  const { token } = useAuth();
-  
-  const mockTranscript = `Regulator 1: Thank you for joining. Let's discuss the Solar Park Alpha project. The biodiversity section looks good, but I am concerned about the water usage for panel cleaning.
-Applicant: We plan to use robotic dry-cleaning methods for 80% of the area to minimize water use.
-Regulator 2: That's acceptable. However, we need you to submit the exact water source details for the remaining 20% by next Friday.
-Applicant: Understood, we will expedite that.
-Regulator 1: Great. Once we have that, we can move to the final approval stage.`;
-
-  const handleGenerateGist = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/ai/meeting-gist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ transcript: mockTranscript })
-      });
-      const data = await res.json();
-      setGist(data.summary);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="p-6 md:p-10 max-w-4xl mx-auto space-y-6 fade-up">
-      <header>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-indigo-500/10 rounded-xl">
-            <Users className="text-indigo-400" size={24} />
-          </div>
-          <h1 className="text-3xl font-bold text-white">Review Meeting Minutes</h1>
-        </div>
-        <p className="text-zinc-400">Access AI-generated automatic gists from your regulator review meetings.</p>
-      </header>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-        <div className="p-4 bg-zinc-950/50 border-b border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-sm font-medium text-white">Solar Park Alpha - Final Review</span>
-          </div>
-          <span className="text-xs text-zinc-500">{new Date().toLocaleDateString()}</span>
-        </div>
-        
-        <div className="p-6 grid md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Raw Transcript Snippet</h3>
-            <div className="bg-zinc-950 border border-white/5 rounded-xl p-4 text-sm text-zinc-400 font-mono leading-relaxed h-[200px] overflow-y-auto">
-              {mockTranscript}
-            </div>
-          </div>
-          
-          <div className="flex flex-col">
-            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">AI Meeting Gist</h3>
-            
-            {!gist ? (
-              <div className="flex-1 bg-indigo-500/5 border border-indigo-500/10 rounded-xl flex items-center justify-center p-6 text-center">
-                <div>
-                  <Users className="mx-auto text-indigo-400/50 mb-3" size={32} />
-                  <p className="text-sm text-zinc-400 mb-4">Generate an official summary of action items and decisions from this transcript.</p>
-                  <button
-                    onClick={handleGenerateGist}
-                    disabled={loading}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    {loading ? 'Summarizing...' : 'Generate Auto-Gist'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 bg-zinc-950 border border-indigo-500/30 rounded-xl p-5 relative">
-                <div className="absolute top-0 right-0 p-2">
-                   <div className="flex items-center gap-1 bg-indigo-500/20 text-indigo-300 text-[10px] uppercase font-bold px-2 py-0.5 rounded">
-                     <Zap size={10} /> AI Generated
-                   </div>
-                </div>
-                <h4 className="text-sm font-bold text-white mb-2">Key Action Items</h4>
-                <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                  {gist}
-                </div>
-              </motion.div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-export default function ApplicantDashboard() {
-  return (
-    <Routes>
-      <Route path="/" element={<ApplicantHome />} />
-      <Route path="/applications" element={<MyApplications />} />
-      <Route path="/submit" element={<SubmitProject />} />
-      <Route path="/advisor" element={<PermissionAdvisor />} />
-      <Route path="/simulation" element={<ImpactSimulation />} />
-      <Route path="/meetings" element={<ReviewMeetings />} />
-      <Route path="/compliance" element={<ComplianceReports />} />
-      <Route path="/notifications" element={<Notifications />} />
-      <Route path="*" element={<Navigate to="/applicant" replace />} />
-    </Routes>
-  );
-}

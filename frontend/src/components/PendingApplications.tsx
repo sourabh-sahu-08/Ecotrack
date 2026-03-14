@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../config';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, ChevronRight, FileText, BrainCircuit, X } from 'lucide-react';
+import { Search, ChevronRight, BrainCircuit, X, AlertCircle, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { WorkflowTimeline, DocumentChecklist, getProjectCategory, getProjectStage } from './ClearanceControls';
 
 interface Project {
   id: number;
@@ -20,15 +21,45 @@ export default function PendingApplications() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [reports, setReports] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [deficiencyMsg, setDeficiencyMsg] = useState('');
+  const [isRaisingDeficiency, setIsRaisingDeficiency] = useState(false);
   const { token } = useAuth();
 
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/projects`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+  const fetchData = () => {
+    fetch(`${API_BASE_URL}/api/projects`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => res.json())
-      .then(data => setProjects(data));
+      .then(setProjects)
+      .catch(() => {});
+    fetch(`${API_BASE_URL}/api/reports`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(setReports).catch(() => {});
+    fetch(`${API_BASE_URL}/api/alerts`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(setAlerts).catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [token]);
+
+  const handleRaiseDeficiency = async () => {
+    if (!selectedProject || !deficiencyMsg) return;
+    setIsRaisingDeficiency(true);
+    try {
+      await fetch(`${API_BASE_URL}/api/alerts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          projectId: selectedProject.id,
+          type: 'Deficiency',
+          severity: 'Deficiency',
+          message: deficiencyMsg
+        })
+      });
+      setDeficiencyMsg('');
+      fetchData();
+    } finally {
+      setIsRaisingDeficiency(false);
+    }
+  };
 
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -122,7 +153,6 @@ export default function PendingApplications() {
         )}
       </div>
 
-      {/* Detail Panel */}
       <AnimatePresence>
         {selectedProject && (
           <>
@@ -190,19 +220,53 @@ export default function PendingApplications() {
                   </section>
 
                   <section>
-                    <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4">EIA Documents</h3>
-                    <div className="space-y-3">
-                      {['Environmental_Impact_Assessment.pdf', 'Site_Plan_v2.pdf', 'Wildlife_Impact_Study.pdf'].map((doc, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-emerald-500/50 transition-colors cursor-pointer group">
-                          <div className="flex items-center gap-3">
-                            <FileText className="text-zinc-500 group-hover:text-emerald-500" size={20} />
-                            <span className="text-sm text-zinc-300">{doc}</span>
-                          </div>
-                          <span className="text-[10px] font-bold text-zinc-600 uppercase">Verified</span>
-                        </div>
-                      ))}
+                    <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4">Application Workflow</h3>
+                    <WorkflowTimeline stage={getProjectStage(selectedProject, alerts)} />
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4">Document Checklist</h3>
+                    <DocumentChecklist 
+                      category={getProjectCategory(selectedProject.description)} 
+                      projectFiles={reports.filter((r: any) => r.projectId === selectedProject.id)} 
+                    />
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-bold text-red-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                       <AlertCircle size={14} /> Raise New Deficiency
+                    </h3>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+                      <textarea
+                        value={deficiencyMsg}
+                        onChange={e => setDeficiencyMsg(e.target.value)}
+                        placeholder="Describe the missing document or required correction..."
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-red-500/50 resize-none"
+                        rows={3}
+                      />
+                      <button 
+                        onClick={handleRaiseDeficiency}
+                        disabled={isRaisingDeficiency || !deficiencyMsg}
+                        className="w-full py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Plus size={14} /> {isRaisingDeficiency ? 'Sending...' : 'Raise Deficiency'}
+                      </button>
                     </div>
                   </section>
+
+                  {alerts.filter(a => a.projectId === selectedProject.id && a.severity === 'Deficiency').length > 0 && (
+                    <section>
+                      <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4">Past Deficiencies</h3>
+                      <div className="space-y-3">
+                        {alerts.filter(a => a.projectId === selectedProject.id && a.severity === 'Deficiency').map((a, i) => (
+                          <div key={i} className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
+                            <p className="text-sm text-zinc-300">{a.message}</p>
+                            <p className="text-[10px] text-zinc-500 mt-2">{new Date(a.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
 
                   <div className="pt-8 flex gap-4">
                     <button 

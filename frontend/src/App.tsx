@@ -21,7 +21,9 @@ import {
   Users,
   BarChart3,
   Camera,
-  BarChart
+  BarChart,
+  User,
+  Settings as SettingsIcon
 } from 'lucide-react';
 
 // Auth
@@ -32,6 +34,8 @@ import Login from './pages/Login';
 import ApplicantDashboard from './pages/ApplicantDashboard';
 import RegulatorDashboard from './pages/RegulatorDashboard';
 import CitizenDashboard from './pages/CitizenDashboard';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 import Chatbot from './components/Chatbot';
 
 function Navigation() {
@@ -197,6 +201,73 @@ function Navigation() {
   );
 }
 
+function ProfileDropdown() {
+  const { user, logout } = useAuth();
+  const [isOpen, setIsOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  if (!user) return null;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#FF9933]/30 to-[#138808]/30 border border-[#FF9933]/30 flex items-center justify-center text-amber-300 font-black text-sm hover:scale-105 transition-transform overflow-hidden"
+      >
+        {user.name?.[0]?.toUpperCase() || 'U'}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-64 bg-[#0a1935] border border-white/10 rounded-2xl shadow-2xl py-2 z-50 overflow-hidden backdrop-blur-xl">
+          <div className="px-4 py-3 border-b border-white/5">
+            <p className="text-sm font-bold text-white">{user.name}</p>
+            <p className="text-xs text-zinc-400 truncate">{user.email}</p>
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-1 font-semibold">{user.role} · {user.name.toLowerCase()}</p>
+          </div>
+          
+          <div className="p-1">
+            <button
+              onClick={() => { navigate('/profile'); setIsOpen(false); }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-sm"
+            >
+              <User size={16} />
+              My Profile
+            </button>
+            <button
+              onClick={() => { navigate('/settings'); setIsOpen(false); }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-sm"
+            >
+              <SettingsIcon size={16} />
+              Settings
+            </button>
+          </div>
+
+          <div className="p-1 border-t border-white/5">
+            <button
+              onClick={() => { logout(); setIsOpen(false); }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors text-sm font-medium"
+            >
+              <LogOut size={16} />
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TopHeader() {
   const location = useLocation();
   const { user } = useAuth();
@@ -212,6 +283,8 @@ function TopHeader() {
     '/applicant/meetings': 'Review Meetings',
     '/applicant/compliance': 'Compliance Reports',
     '/applicant/notifications': 'Notifications',
+    '/profile': 'My Profile',
+    '/settings': 'Settings',
     '/regulator': 'Dashboard',
     '/regulator/pending': 'Pending Applications',
     '/regulator/map': 'GIS Project Map',
@@ -254,14 +327,7 @@ function TopHeader() {
           <Bell size={18} />
           <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
         </button>
-        {user && (
-          <button 
-            onClick={() => alert(`Profile management for ${user.name} is coming soon!`)}
-            className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#FF9933]/30 to-[#138808]/30 border border-[#FF9933]/30 flex items-center justify-center text-amber-300 font-black text-sm hover:scale-105 transition-transform"
-          >
-            {user.name?.[0]?.toUpperCase() || 'U'}
-          </button>
-        )}
+        {user && <ProfileDropdown />}
       </div>
     </header>
   );
@@ -328,6 +394,17 @@ function AppContent() {
           <Route path="/regulator/*" element={
             <ProtectedRoute allowedRoles={['Regulator']}>
               <RegulatorDashboard />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           } />
         </Routes>

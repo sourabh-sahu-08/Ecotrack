@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../config';
 import { motion } from 'motion/react';
-import { AlertTriangle, CheckCircle2, Clock, FileSearch, ShieldAlert, ChevronRight, BrainCircuit } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, FileSearch, ShieldAlert, BrainCircuit, PieChart, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import RegulatorMap from '../components/RegulatorMap';
@@ -22,6 +22,7 @@ interface Project {
   createdAt: string;
   lat: number;
   lng: number;
+  description: string;
 }
 
 function RegulatorHome() {
@@ -56,6 +57,10 @@ function RegulatorHome() {
   };
 
   const pendingProjects = projects.filter(p => p.status === 'Pending' || p.status === 'Under Review');
+  const approvedCount = projects.filter(p => p.status === 'Approved').length;
+  const rejectedCount = projects.filter(p => p.status === 'Rejected').length;
+  const highRiskCount = projects.filter(p => p.riskScore > 70).length;
+  console.log('Stats:', { approvedCount, rejectedCount, highRiskCount });
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-8">
@@ -82,7 +87,59 @@ function RegulatorHome() {
         </div>
       </header>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Applications', val: projects.length, icon: FileSearch, color: 'text-white' },
+          { label: 'Approved', val: approvedCount, icon: CheckCircle2, color: 'text-emerald-400' },
+          { label: 'Pending Review', val: pendingProjects.length, icon: Clock, color: 'text-amber-400' },
+          { label: 'High Risk', val: highRiskCount, icon: AlertTriangle, color: 'text-red-400' },
+        ].map((stat, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+            className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl flex items-center gap-4">
+            <div className={`p-3 rounded-xl bg-zinc-950 border border-zinc-800 ${stat.color}`}>
+              <stat.icon size={20} />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-white">{stat.val}</div>
+              <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{stat.label}</div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Analytics Section */}
+        <div className="xl:col-span-1 bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+          <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <PieChart size={18} className="text-emerald-400" /> Category Distribution
+          </h2>
+          <div className="space-y-4">
+             {['Mining', 'Infrastructure', 'Energy', 'Manufacturing'].map((cat, i) => {
+               const count = projects.filter(p => p.description.includes(cat) || (p as any).type === cat).length;
+               const total = projects.length || 1;
+               const pct = Math.round((count / total) * 100);
+               const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-indigo-500'];
+               return (
+                 <div key={cat} className="space-y-1.5">
+                   <div className="flex justify-between text-xs font-bold">
+                     <span className="text-zinc-400 uppercase tracking-wider">{cat}</span>
+                     <span className="text-white">{pct}%</span>
+                   </div>
+                   <div className="h-2 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800/50">
+                     <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} className={`h-full ${colors[i % colors.length]}`} />
+                   </div>
+                 </div>
+               );
+             })}
+          </div>
+          <div className="mt-8 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex items-start gap-3">
+            <TrendingUp size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Applications are up by <span className="text-emerald-400 font-bold">12%</span> compared to last month. Mining projects show the highest increase in risk flags.
+            </p>
+          </div>
+        </div>
+
         {/* Main Review Queue */}
         <div className="xl:col-span-2 space-y-4">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -191,7 +248,7 @@ function RegulatorHome() {
                 <div className="text-xs text-zinc-500">Approved</div>
               </div>
               <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800/50">
-                <div className="text-2xl font-bold text-red-400 mb-1">3</div>
+                <div className="text-2xl font-bold text-red-400 mb-1">{rejectedCount}</div>
                 <div className="text-xs text-zinc-500">Rejected</div>
               </div>
               <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800/50 col-span-2">
@@ -201,17 +258,6 @@ function RegulatorHome() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function PlaceholderView({ title }: { title: string }) {
-  return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-white mb-4">{title}</h1>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 text-center">
-        <p className="text-zinc-400">This section is currently under development.</p>
       </div>
     </div>
   );

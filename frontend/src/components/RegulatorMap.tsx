@@ -3,8 +3,9 @@ import { API_BASE_URL } from '../config';
 import { MapContainer, TileLayer, Marker, Popup, Circle, LayersControl, LayerGroup, Polygon } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { AlertTriangle, CheckCircle2, Info, Map as MapIcon, Trees, Bird, Waves, Users, Factory, ChevronRight, Filter } from 'lucide-react';
+import { Trees, Bird, Waves, Users, Factory, ChevronRight, Filter, Layers } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getProjectCategory } from './ClearanceControls';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -153,6 +154,15 @@ export default function RegulatorMap() {
                       <Users size={14} className="text-zinc-500" />
                       <span>{project.applicant}</span>
                     </div>
+                    <div className="flex items-center gap-2 text-xs text-zinc-400">
+                      <Layers size={14} className="text-zinc-500" />
+                      <span>Category: {getProjectCategory(project.description)}</span>
+                    </div>
+                    {project.description.toLowerCase().includes('kml') && (
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded-md">
+                        <Layers size={12} /> GIS Bound. Validated
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <div className="text-xs font-semibold text-zinc-300">Risk Score:</div>
                       <div className={`text-sm font-bold ${
@@ -172,18 +182,26 @@ export default function RegulatorMap() {
                 </div>
               </Popup>
             </Marker>
-            {/* Impact Radius Visualization */}
-            <Circle 
-              center={[project.lat, project.lng]} 
-              radius={project.riskScore * 500} 
-              pathOptions={{ 
-                color: getRiskColor(project.riskScore), 
-                fillColor: getRiskColor(project.riskScore), 
-                fillOpacity: 0.05,
-                weight: 1,
-                dashArray: '5, 10'
-              }} 
-            />
+            
+            {project.description.toLowerCase().includes('kml') ? (
+              <Circle
+                center={[project.lat, project.lng]}
+                radius={2000}
+                pathOptions={{ color: '#10b981', fillColor: '#10b981', fillOpacity: 0.2, weight: 2 }}
+              />
+            ) : (
+              <Circle 
+                center={[project.lat, project.lng]} 
+                radius={project.riskScore * 500} 
+                pathOptions={{ 
+                  color: getRiskColor(project.riskScore), 
+                  fillColor: getRiskColor(project.riskScore), 
+                  fillOpacity: 0.05,
+                  weight: 1,
+                  dashArray: '5, 10'
+                }} 
+              />
+            )}
           </React.Fragment>
         ))}
       </MapContainer>
