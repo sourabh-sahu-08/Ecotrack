@@ -406,7 +406,7 @@ async function startServer() {
 
   // --- NEW PARIVESH 3.0 AI ENDPOINTS ---
 
-  app.post("/api/ai/permission-advisor", authenticateToken, authorizeRoles('Applicant'), async (req, res) => {
+  app.post("/api/ai/permission-advisor", authenticateToken, authorizeRoles('Applicant'), async (req: any, res: any) => {
     try {
       if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
         return res.json({ 
@@ -432,7 +432,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/ai/pollution-predictor", authenticateToken, authorizeRoles('Applicant', 'Regulator'), async (req, res) => {
+  app.post("/api/ai/pollution-predictor", authenticateToken, authorizeRoles('Applicant', 'Regulator'), async (req: any, res: any) => {
     try {
       if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
          return res.json({ air: 45, water: 20, co2: 1200, summary: "Mock risk values generated due to missing API key." });
@@ -454,7 +454,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/ai/meeting-gist", authenticateToken, async (req, res) => {
+  app.post("/api/ai/meeting-gist", authenticateToken, async (req: any, res: any) => {
     try {
       if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
          return res.json({ summary: "Mock Meeting Note: The project review resulted in a request for additional hydrology data. Deadline extended by 14 days." });
@@ -472,7 +472,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/ai/analyze-document", authenticateToken, authorizeRoles('Applicant', 'Regulator'), async (req, res) => {
+  app.post("/api/ai/analyze-document", authenticateToken, authorizeRoles('Applicant', 'Regulator'), async (req: any, res: any) => {
     try {
       if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
          return res.json({ 
@@ -501,7 +501,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/ai/verify-complaint", authenticateToken, authorizeRoles('Citizen', 'Regulator'), async (req, res) => {
+  app.post("/api/ai/verify-complaint", authenticateToken, authorizeRoles('Citizen', 'Regulator'), async (req: any, res: any) => {
     try {
       if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
          return res.json({ validityScore: 88, verificationStatus: "High Confidence", details: "Mock validation: Visual data matches description. Probable illegal discharge detected." });
@@ -526,7 +526,7 @@ async function startServer() {
   });
   
   // Mock IoT / GIS Data Endpoints
-  app.get("/api/monitoring/data", authenticateToken, (req, res) => {
+  app.get("/api/monitoring/data", authenticateToken, (req: any, res: any) => {
     // Generate simulated real-time IoT data
     const sensors = Array.from({length: 5}).map((_, i) => ({
       id: `sensor-${i}`,
@@ -558,7 +558,7 @@ async function startServer() {
   app.use(express.static(distPath));
   
   // Catch-all to serve index.html for SPA
-  app.get("*", (req, res) => {
+  app.get("*", (req: any, res: any) => {
     // Only serve index.html if it's not an API call
     if (!req.path.startsWith('/api')) {
       res.sendFile(path.join(distPath, 'index.html'));
