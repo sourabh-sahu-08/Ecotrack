@@ -98,7 +98,7 @@ if (userCount.count === 0) {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(cors());
   app.use(express.json());
@@ -549,6 +549,20 @@ async function startServer() {
     }));
     
     res.json({ sensors, satelliteChanges });
+  });
+  
+  // --- STATIC FILE SERVING FOR PRODUCTION ---
+  const __dirname = path.resolve();
+  const distPath = path.resolve(__dirname, process.cwd().endsWith('backend') ? '../frontend/dist' : 'frontend/dist');
+  
+  app.use(express.static(distPath));
+  
+  // Catch-all to serve index.html for SPA
+  app.get("*", (req, res) => {
+    // Only serve index.html if it's not an API call
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(distPath, 'index.html'));
+    }
   });
 
   app.listen(PORT, "0.0.0.0", () => {

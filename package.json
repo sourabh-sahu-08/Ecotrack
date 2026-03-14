@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "build": "npm run build --workspaces --if-present",
-    "start": "concurrently \"npm run start -w backend\" \"npm run start -w frontend\""
+    "start": "npm run start -w backend"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
