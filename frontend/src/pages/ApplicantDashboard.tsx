@@ -840,7 +840,7 @@ function PermissionAdvisor() {
           </div>
           <h1 className="text-3xl font-bold text-white">AI Permission Advisor</h1>
         </div>
-        <p className="text-zinc-400">Describe your project idea, and our Gemini AI will predict the necessary regulatory approvals.</p>
+        <p className="text-zinc-400">Describe your project idea, and our Groq AI will predict the necessary regulatory approvals.</p>
       </header>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">

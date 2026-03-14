@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import Database from "better-sqlite3";
-import { GoogleGenAI } from "@google/genai";
+import { fetch } from "undici";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cors from "cors";
@@ -11,6 +11,64 @@ import fs from "fs";
 
 // Load .env from current dir or parent dir
 dotenv.config({ path: [path.resolve(process.cwd(), '.env'), path.resolve(process.cwd(), '../.env')] });
+
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+function ensureGroqKey() {
+  if (!GROQ_API_KEY || GROQ_API_KEY === 'MY_GROQ_API_KEY') {
+    throw new Error("Invalid or missing GROQ_API_KEY");
+  }
+}
+
+function parseAiJson(text: string): any {
+  try {
+    // Try to find a JSON block between triple backticks
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const candidate = match ? match[1] : text;
+    
+    // Attempt to find the first '{' and last '}' to handle preamble
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      return JSON.parse(candidate.substring(start, end + 1));
+    }
+    
+    return JSON.parse(candidate.trim());
+  } catch (e) {
+    console.error("Failed to parse AI JSON:", e, "Original text:", text);
+    return null;
+  }
+}
+
+function extractGroqText(data: any): string {
+  if (!data || !Array.isArray(data.choices) || data.choices.length === 0) return "";
+  return data.choices[0]?.message?.content ?? "";
+}
+
+async function groqGenerate(prompt: string): Promise<string> {
+  ensureGroqKey();
+  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "user", content: prompt }
+      ],
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Groq API error: ${resp.status} ${resp.statusText} - ${errText}`);
+  }
+
+  const data = await resp.json();
+  return extractGroqText(data);
+}
 
 const db = new Database("ecotrack.db");
 
@@ -201,8 +259,20 @@ async function startServer() {
         return res.status(404).json({ error: "User not found" });
       }
       res.json(user);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch profile" });
+    } catch (error: any) {
+      console.error("Profile Fetch Error:", error.message || error);
+      res.status(500).json({ error: "Failed to fetch profile: " + error.message });
+    }
+  });
+
+  // Health Check
+  app.get("/api/health", (req, res) => {
+    try {
+      db.prepare("SELECT 1").get();
+      res.json({ status: "ok", database: "connected", timestamp: new Date().toISOString() });
+    } catch (error: any) {
+      console.error("Health Check Failed:", error.message || error);
+      res.status(500).json({ status: "error", database: "disconnected", error: error.message });
     }
   });
 
@@ -228,50 +298,39 @@ async function startServer() {
     let riskSummary = '';
     
     try {
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
-        throw new Error("Invalid or missing GEMINI_API_KEY");
-      }
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `Analyze the following environmental project description and provide a highly accurate risk score from 0 to 100 (where 100 is highest environmental risk) based on the provided metrics. Provide a brief 3-sentence summary of the risks regarding deforestation, water depletion, pollution, and wildlife impact. Factor in the distance to protected areas heavily.
-        
-        Project Title: ${title}
-        Type: ${type || 'N/A'}
-        Estimated Project Cost: ₹${cost || 'N/A'} Cr
-        Estimated Employment: ${employment || 'N/A'} Persons
-        Estimated Area: ${area || 'N/A'} Hectares
-        Requires Forest Land: ${forestLand || 'No'}
-        Distance to Nearest Protected Area/Wildlife Sanctuary: ${distProtectedArea || 'N/A'} km
-        Estimated Water Usage: ${waterUsage || 'N/A'} Liters/Day
-        Wastewater Generation: ${wastewater || 'N/A'} Liters/Day
-        Solid Waste Generation: ${solidWaste || 'N/A'} Tons/Day
-        Expected Air Emissions: ${emissions || 'None'}
-        Project Description: ${description}
-        
-        Return the response strictly as JSON with keys "score" (number) and "summary" (string).`,
-        config: {
-          responseMimeType: "application/json",
-        }
-      });
+      const prompt = `Analyze the following environmental project description and provide a highly accurate risk score from 0 to 100 (where 100 is highest environmental risk) based on the provided metrics. Provide a brief 3-sentence summary of the risks regarding deforestation, water depletion, pollution, and wildlife impact. Factor in the distance to protected areas heavily.
       
+      Project Title: ${title}
+      Type: ${type || 'N/A'}
+      Estimated Project Cost: ₹${cost || 'N/A'} Cr
+      Estimated Employment: ${employment || 'N/A'} Persons
+      Estimated Area: ${area || 'N/A'} Hectares
+      Requires Forest Land: ${forestLand || 'No'}
+      Distance to Nearest Protected Area/Wildlife Sanctuary: ${distProtectedArea || 'N/A'} km
+      Estimated Water Usage: ${waterUsage || 'N/A'} Liters/Day
+      Wastewater Generation: ${wastewater || 'N/A'} Liters/Day
+      Solid Waste Generation: ${solidWaste || 'N/A'} Tons/Day
+      Expected Air Emissions: ${emissions || 'None'}
+      Project Description: ${description}
+      
+      Return the response strictly as JSON with keys "score" (number) and "summary" (string).`;
+
+      const text = await groqGenerate(prompt);
+
       try {
-        const text = response.text || "{}";
-        // Clean JSON if it's wrapped in markdown
-        const cleanJson = text.replace(/```json\s?|\s?```/g, '').trim();
-        const result = JSON.parse(cleanJson || "{}");
+        const result = parseAiJson(text) || {};
         riskScore = result.score || 0;
         riskSummary = result.summary || '';
       } catch (parseError) {
-        console.error("AI Response Parse Error:", parseError, "Response text:", response.text);
+        console.error("AI Response Parse Error:", parseError, "Response text:", text);
         riskScore = 50;
         riskSummary = "AI response format error. Using fallback summary.";
       }
     } catch (error: any) {
-      if (error?.status === 400 || error?.message?.includes('API key not valid') || error?.message?.includes('Invalid or missing')) {
-        console.warn("⚠️ Gemini API Key is missing or invalid. Using fallback risk analysis.");
+      if (error?.message?.includes('Invalid or missing GROQ_API_KEY') || error?.message?.includes('Groq API error')) {
+        console.warn("⚠️ Groq API Key is missing or invalid. Using fallback risk analysis.");
         riskScore = Math.floor(Math.random() * 100);
-        riskSummary = "Fallback AI Summary: The project requires manual review. Please configure a valid Gemini API key in the Secrets panel for accurate AI analysis.";
+        riskSummary = "Fallback AI Summary: The project requires manual review. Please configure a valid Groq API key in the Secrets panel for accurate AI analysis.";
       } else {
         console.error("AI Analysis Error during project creation:", error);
         riskScore = 50;
@@ -326,39 +385,27 @@ async function startServer() {
   // AI Routes
   app.post("/api/ai/analyze-risk", authenticateToken, authorizeRoles('Regulator', 'Applicant'), async (req: any, res: any) => {
     try {
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
-        return res.json({ score: 50, summary: "Fallback AI Summary: Please configure a valid Gemini API key in the Secrets panel." });
-      }
       const { description } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `Analyze the following environmental project description and provide a risk score from 0 to 100 (where 100 is highest risk) and a brief 2-sentence summary of the risks regarding deforestation, water, and wildlife.
-        
-        Project Description: ${description}
-        
-        Return the response strictly as JSON with keys "score" (number) and "summary" (string).`,
-        config: {
-          responseMimeType: "application/json",
-        }
-      });
+      const prompt = `Analyze the following environmental project description and provide a risk score from 0 to 100 (where 100 is highest risk) and a brief 2-sentence summary of the risks regarding deforestation, water, and wildlife.
       
-      try {
-        const text = response.text || "{}";
-        const cleanJson = text.replace(/```json\s?|\s?```/g, '').trim();
-        const result = JSON.parse(cleanJson || "{}");
+      Project Description: ${description}
+      
+      Return the response strictly as JSON with keys "score" (number) and "summary" (string).`;
+
+      const text = await groqGenerate(prompt);
+      const result = parseAiJson(text);
+      if (result) {
         res.json(result);
-      } catch (parseError) {
-        console.error("AI Analysis Parse Error:", parseError, "Response text:", response.text);
-        res.status(500).json({ error: "Failed to parse AI response" });
+      } else {
+        throw new Error("Failed to parse AI response as JSON");
       }
     } catch (error: any) {
-      if (error?.status === 400 || error?.message?.includes('API key not valid')) {
-        console.warn("⚠️ Gemini API Key is missing or invalid.");
-        return res.json({ score: 50, summary: "Fallback AI Summary: Please configure a valid Gemini API key in the Secrets panel." });
+      console.error("AI Analysis Error (analyze-risk):", error.message || error);
+      if (error?.message?.includes('Invalid or missing GROQ_API_KEY') || error?.message?.includes('Groq API error')) {
+        console.warn("⚠️ Groq API issue. Using fallback risk analysis.");
+        return res.json({ score: 50, summary: "Fallback AI Summary: Please configure a valid Groq API key in the Secrets panel." });
       }
-      console.error("AI Analysis Error:", error);
-      res.status(500).json({ error: "Failed to analyze risk" });
+      res.status(500).json({ error: "Failed to analyze risk: " + (error.message || "Unknown error") });
     }
   });
 
@@ -368,40 +415,30 @@ async function startServer() {
       res.setHeader('Transfer-Encoding', 'chunked');
       res.flushHeaders();
 
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
-        res.write("I'm sorry, but my AI capabilities are currently offline. Please configure a valid Gemini API key in the Secrets panel.");
-        return res.end();
-      }
-      
       const { message, language } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const stream = await ai.models.generateContentStream({
-        model: "gemini-1.5-flash",
-        contents: `You are the Official AI Assistant for EcoTrack (PARIVESH 3.0), the environmental clearance portal for the Ministry of Environment, Forest and Climate Change (MoEFCC), Government of India.
-        
-        Your role is to assist project proponents, regulators, and citizens with queries related to Environmental Impact Assessments (EIA), Forest Clearances, Wildlife Clearances, Coastal Regulation Zone (CRZ) rules, and pollution control norms.
-        
-        Guidelines:
-        1. Maintain a highly professional, formal, and objective tone suitable for a government representative. Avoid slang or overly casual language.
-        2. Provide accurate, structured, and easy-to-understand information.
-        3. If you do not know the answer with absolute certainty, advise the user to consult official government notifications or contact the ministry directly. Do not invent regulations.
-        4. Keep responses concise unless detailed explanations are requested. Use bullet points for readability.
-        
-        Requested Language: ${language || 'English'}
-        User Query: ${message}`
-      });
+      const prompt = `You are the Official AI Assistant for EcoTrack (PARIVESH 3.0), the environmental clearance portal for the Ministry of Environment, Forest and Climate Change (MoEFCC), Government of India.
       
-      for await (const chunk of stream) {
-        const text = chunk.text;
-        if (text) {
-          res.write(text);
-        }
-      }
+      Your role is to assist project proponents, regulators, and citizens with queries related to Environmental Impact Assessments (EIA), Forest Clearances, Wildlife Clearances, Coastal Regulation Zone (CRZ) rules, and pollution control norms.
+      
+      Guidelines:
+      1. Maintain a highly professional, formal, and objective tone suitable for a government representative. Avoid slang or overly casual language.
+      2. Provide accurate, structured, and easy-to-understand information.
+      3. If you do not know the answer with absolute certainty, advise the user to consult official government notifications or contact the ministry directly. Do not invent regulations.
+      4. Keep responses concise unless detailed explanations are requested. Use bullet points for readability.
+      
+      Requested Language: ${language || 'English'}
+      User Query: ${message}`;
+
+      const text = await groqGenerate(prompt);
+      res.write(text);
       res.end();
     } catch (error: any) {
       console.error("AI Chat Error:", error?.message || error);
-      // Return graceful fallback for any AI error
-      res.write("\n\nI'm sorry, I couldn't process your request right now. Please try again in a moment.");
+      if (error?.message?.includes('Invalid or missing GROQ_API_KEY')) {
+        res.write("I'm sorry, but my AI capabilities are currently offline. Please configure a valid Groq API key in the Secrets panel.");
+      } else {
+        res.write("\n\nI'm sorry, I couldn't process your request right now. Please try again in a moment.");
+      }
       res.end();
     }
   });
@@ -410,119 +447,106 @@ async function startServer() {
 
   app.post("/api/ai/permission-advisor", authenticateToken, authorizeRoles('Applicant'), async (req: any, res: any) => {
     try {
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
-        return res.json({ 
-          approvals: ["Environmental Clearance", "Forest Clearance", "Wildlife Clearance"],
-          advice: "Fallback Advice: Gemini API key missing. Showing default mock clearances."
-        });
-      }
       const { idea } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `You are the EcoTrack Permit Advisor AI. The user has an idea for a project in India: "${idea}".
-        List the required environmental approvals (e.g., Environmental Clearance, Forest Clearance, Wildlife Clearance, CRZ Clearance, Consent to Establish/Operate).
-        Return purely a JSON object: { "approvals": ["Approval 1", "Approval 2"], "advice": "Brief reasoning." }`,
-        config: { responseMimeType: "application/json" }
-      });
-      const text = response.text || "{}";
-      const cleanJson = text.replace(/```json\s?|\s?```/g, '').trim();
-      res.json(JSON.parse(cleanJson || "{}"));
+      const prompt = `You are the EcoTrack Permit Advisor AI. The user has an idea for a project in India: "${idea}".
+      List the required environmental approvals (e.g., Environmental Clearance, Forest Clearance, Wildlife Clearance, CRZ Clearance, Consent to Establish/Operate).
+      Return purely a JSON object: { "approvals": ["Approval 1", "Approval 2"], "advice": "Brief reasoning." }`;
+
+      const text = await groqGenerate(prompt);
+      const result = parseAiJson(text);
+      res.json(result || {});
     } catch (error: any) {
       console.error("AI Advisor Error:", error.message || error);
+      if (error?.message?.includes('Invalid or missing GROQ_API_KEY')) {
+        return res.json({ 
+          approvals: ["Environmental Clearance", "Forest Clearance", "Wildlife Clearance"],
+          advice: "Fallback Advice: Groq API key missing. Showing default mock clearances."
+        });
+      }
       res.status(500).json({ error: "Failed to advise permissions: " + (error.message || "Unknown error") });
     }
   });
 
   app.post("/api/ai/pollution-predictor", authenticateToken, authorizeRoles('Applicant', 'Regulator'), async (req: any, res: any) => {
     try {
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
-         return res.json({ air: 45, water: 20, co2: 1200, summary: "Mock risk values generated due to missing API key." });
-      }
       const { projectData } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `As an Environmental AI, predict pollution risks for: ${JSON.stringify(projectData)}.
-        Return a JSON object: { "air": <0-100 risk score>, "water": <0-100 risk score>, "co2": <estimated tons per year>, "summary": "Short explanation" }`,
-        config: { responseMimeType: "application/json" }
-      });
-      const text = response.text || "{}";
-      const cleanJson = text.replace(/```json\s?|\s?```/g, '').trim();
-      res.json(JSON.parse(cleanJson || "{}"));
+      const prompt = `As an Environmental AI, predict pollution risks for: ${JSON.stringify(projectData)}.
+      Return a JSON object: { "air": <0-100 risk score>, "water": <0-100 risk score>, "co2": <estimated tons per year>, "summary": "Short explanation" }`;
+
+      const text = await groqGenerate(prompt);
+      const result = parseAiJson(text);
+      res.json(result || {});
     } catch (error: any) {
       console.error("Pollution Predictor Error:", error.message || error);
+      if (error?.message?.includes('Invalid or missing GROQ_API_KEY')) {
+        return res.json({ air: 45, water: 20, co2: 1200, summary: "Mock risk values generated due to missing API key." });
+      }
       res.status(500).json({ error: "Failed to predict pollution." });
     }
   });
 
   app.post("/api/ai/meeting-gist", authenticateToken, async (req: any, res: any) => {
     try {
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
-         return res.json({ summary: "Mock Meeting Note: The project review resulted in a request for additional hydrology data. Deadline extended by 14 days." });
-      }
       const { transcript } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `Summarize this environmental review meeting transcript into concise action items and key decisions: "${transcript}"`
-      });
-      res.json({ summary: response.text });
+      const prompt = `Summarize this environmental review meeting transcript into concise action items and key decisions: "${transcript}"`;
+      const text = await groqGenerate(prompt);
+      res.json({ summary: text });
     } catch (error: any) {
       console.error("Meeting Gist Error:", error.message || error);
+      if (error?.message?.includes('Invalid or missing GROQ_API_KEY')) {
+        return res.json({ summary: "Mock Meeting Note: The project review resulted in a request for additional hydrology data. Deadline extended by 14 days." });
+      }
       res.status(500).json({ error: "Failed to generate meeting gist." });
     }
   });
 
   app.post("/api/ai/analyze-document", authenticateToken, authorizeRoles('Applicant', 'Regulator'), async (req: any, res: any) => {
     try {
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
-         return res.json({ 
-             missingFiles: ["Hydrology Report", "Public Hearing Minutes"],
-             duplicateSections: [],
-             copiedContent: [{ page: 12, source: "Generic Wikipedia template missing specifics" }],
-             overallIntegrityScore: 65,
-             summary: "Mock verification run."
-         });
+      const { documentText, pdfUrl } = req.body;
+      
+      // Fallback for mock documents in the UI
+      const textToAnalyze = documentText || `This is a mock excerpt from the document "${pdfUrl || 'unknown.pdf'}". The project involves coastal development and potential impact on local mangroves. Regional biodiversity surveys were conducted but may lack detailed avian migration data for the monsoon season.`;
+
+      const prompt = `You are an AI document verification system for EIA reports. Analyze this document excerpt: "${textToAnalyze.substring(0, 5000)}..."
+      Identify missing standard EIA appendices, detect potentially repetitive/generic copied text, and score the integrity.
+      Return JSON object strictly as: { "missingFiles": ["file1"], "copiedContent": [{"text": "...", "source": "..."}], "score": 80, "summary": "Brief explanation" }`;
+      
+      const text = await groqGenerate(prompt);
+      const result = parseAiJson(text);
+      if (result && result.overallIntegrityScore && !result.score) {
+        result.score = result.overallIntegrityScore;
       }
-      const { documentText } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `You are an AI document verification system for EIA reports. Analyze this document excerpt: "${documentText.substring(0, 5000)}..."
-        Identify missing standard EIA appendices, detect potentially repetitive/generic copied text, and score the integrity.
-        Return JSON object: { "missingFiles": ["file1"], "duplicateSections": ["sec1"], "copiedContent": ["desc1"], "overallIntegrityScore": 80, "summary": "Brief explanation" }`,
-        config: { responseMimeType: "application/json" }
-      });
-      const text = response.text || "{}";
-      const cleanJson = text.replace(/```json\s?|\s?```/g, '').trim();
-      res.json(JSON.parse(cleanJson || "{}"));
+      res.json(result || {});
     } catch (error: any) {
       console.error("Document Analysis Error:", error.message || error);
+      if (error?.message?.includes('Invalid or missing GROQ_API_KEY')) {
+        return res.json({ 
+            missingFiles: ["Hydrology Report", "Public Hearing Minutes"],
+            copiedContent: [{ text: "Generic Wikipedia template missing specifics", source: "Online Encyclopedia" }],
+            score: 65,
+            summary: "Mock verification run due to missing API key."
+        });
+      }
       res.status(500).json({ error: "Failed to analyze document." });
     }
   });
 
   app.post("/api/ai/verify-complaint", authenticateToken, authorizeRoles('Citizen', 'Regulator'), async (req: any, res: any) => {
     try {
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
-         return res.json({ validityScore: 88, verificationStatus: "High Confidence", details: "Mock validation: Visual data matches description. Probable illegal discharge detected." });
-      }
       const { evidenceDesc, complaintText } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `You are an AI Complaint Verification assistant for a public environmental portal.
-        A citizen submitted a complaint with text: "${complaintText}" and described the evidence (e.g. photo details) as: "${evidenceDesc}".
-        Evaluate the coherence and logical validity of this complaint.
-        Return JSON object: { "validityScore": <0-100>, "verificationStatus": "High Confidence" | "Needs Manual Review" | "Low Confidence", "details": "explanation" }`,
-        config: { responseMimeType: "application/json" }
-      });
-      const text = response.text || "{}";
-      const cleanJson = text.replace(/```json\s?|\s?```/g, '').trim();
-      res.json(JSON.parse(cleanJson || "{}"));
+      const prompt = `You are an AI Complaint Verification assistant for a public environmental portal.
+      A citizen submitted a complaint with text: "${complaintText}" and described the evidence (e.g. photo details) as: "${evidenceDesc}".
+      Evaluate the coherence and logical validity of this complaint.
+      Return JSON object: { "validityScore": <0-100>, "verificationStatus": "High Confidence" | "Needs Manual Review" | "Low Confidence", "details": "explanation" }`;
+
+      const text = await groqGenerate(prompt);
+      const result = parseAiJson(text);
+      res.json(result || {});
     } catch (error: any) {
       console.error("Complaint Verification Error:", error.message || error);
+      if (error?.message?.includes('Invalid or missing GROQ_API_KEY')) {
+        return res.json({ validityScore: 88, verificationStatus: "High Confidence", details: "Mock validation: Visual data matches description. Probable illegal discharge detected." });
+      }
       res.status(500).json({ error: "Failed to verify complaint." });
     }
   });
@@ -598,6 +622,13 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+  }).on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Error: Port ${PORT} is already in use. Please kill the process using it or change the port in .env.`);
+      process.exit(1);
+    } else {
+      console.error("Server startup error:", err);
+    }
   });
 }
 

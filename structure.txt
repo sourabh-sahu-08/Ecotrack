@@ -1,0 +1,18 @@
+
+D:\ecotrack2\ecotrack
+├── backend
+├── frontend
+├── metadata.json
+├── node_modules
+├── package-lock.json
+├── package.json
+├── README.md
+├── structure.txt
+├── test_backend.js
+└── test_chat.js
+
+directory: 3 file: 7
+
+
+
+[2K[1G

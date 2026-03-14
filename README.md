@@ -4,7 +4,7 @@
 
 # EcoTrack — Environmental Clearance Portal
 
-EcoTrack (PARIVESH 3.0) is a next-generation environmental clearance platform designed for the Ministry of Environment, Forest and Climate Change (MoEFCC), Government of India. It leverages Gemini AI to offer intelligent risk analysis, automated report summaries, and transparent public monitoring.
+EcoTrack (PARIVESH 3.0) is a next-generation environmental clearance platform designed for the Ministry of Environment, Forest and Climate Change (MoEFCC), Government of India. It leverages Groq AI to offer intelligent risk analysis, automated report summaries, and transparent public monitoring.
 
 ## 🚀 Features
 
@@ -19,7 +19,7 @@ EcoTrack (PARIVESH 3.0) is a next-generation environmental clearance platform de
 
 - **Frontend**: React, Vite, Tailwind CSS, Motion (Framer), Lucide Icons.
 - **Backend**: Node.js, Express, Better-SQLite3, JWT Authentication.
-- **AI Engine**: Google Gemini (Flash 1.5).
+- **AI Engine**: Groq AI (groq-1).
 
 ## 💻 Local Setup
 
@@ -35,7 +35,7 @@ EcoTrack (PARIVESH 3.0) is a next-generation environmental clearance platform de
 3. **Configure Environment Variables**:
    Create a `.env` file in the `backend` directory:
    ```env
-   GEMINI_API_KEY=your_gemini_api_key
+   GROQ_API_KEY=your_groq_api_key
    JWT_SECRET=your_secure_jwt_secret
    ```
 4. **Run the App**:
@@ -50,7 +50,7 @@ The backend is configured for deployment on Render.
 - **Build Command**: `npm install; npm run build`
 - **Start Command**: `npm start`
 - **Environment Variables**:
-  - `GEMINI_API_KEY`: Your Google Gemini API Key
+  - `GROQ_API_KEY`: Your Groq AI API Key
   - `JWT_SECRET`: A secure string for JWT tokens
   - `NODE_ENV`: `production`
 

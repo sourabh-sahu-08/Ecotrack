@@ -1,30 +1,49 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { fetch } from "undici";
 import dotenv from "dotenv";
 import path from "path";
 
 dotenv.config({ path: [path.resolve(process.cwd(), '.env'), path.resolve(process.cwd(), '../.env')] });
 
+function parseAiJson(text: string): any {
+  try {
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const candidate = match ? match[1] : text;
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      return JSON.parse(candidate.substring(start, end + 1));
+    }
+    return JSON.parse(candidate.trim());
+  } catch (e) {
+    return null;
+  }
+}
+
 async function test() {
   try {
-    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    // Note: The usage in server.ts suggests genAI.models.generateContent
-    // But let's see what the object looks like
-    console.log("genAI keys:", Object.keys(genAI));
-    if ((genAI as any).models) {
-        console.log("genAI.models keys:", Object.keys((genAI as any).models));
-    }
-    
-    const response = await (genAI as any).models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: "Hello, say hi!"
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: "Return a JSON object with a 'message' key saying 'Hello'. Include some preamble text before the JSON." }],
+      }),
     });
-    console.log("Response keys:", Object.keys(response));
-    console.log("Response.text type:", typeof response.text);
-    if (typeof response.text === 'function') {
-        console.log("Response.text() output:", response.text());
+
+    const data: any = await response.json();
+    const rawContent = data.choices?.[0]?.message?.content || "";
+    console.log("Raw AI Content:", rawContent);
+    const parsed = parseAiJson(rawContent);
+    console.log("Parsed JSON:", parsed);
+    
+    if (parsed && parsed.message === 'Hello') {
+      console.log("✅ Robust parsing successful!");
     } else {
-        console.log("Response.text value:", response.text);
+      console.log("❌ Robust parsing failed.");
     }
   } catch (e) {
     console.error("Test failed:", e);

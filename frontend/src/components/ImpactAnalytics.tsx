@@ -87,7 +87,7 @@ export default function ImpactAnalytics() {
             </div>
             <h3 className="text-xl font-bold text-white mb-2">AI Resource Optimizer Active</h3>
             <p className="text-zinc-400 text-sm max-w-sm mb-6">
-              Our Gemini AI model is currently monitoring cumulative regional thresholds across all approved projects to prevent ecological tipping points.
+              Our Groq AI model is currently monitoring cumulative regional thresholds across all approved projects to prevent ecological tipping points.
             </p>
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase tracking-widest rounded-lg border border-emerald-500/20">
               <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />

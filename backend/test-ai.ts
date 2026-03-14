@@ -1,17 +1,24 @@
 import "dotenv/config";
-import { GoogleGenAI } from "@google/genai";
+import { fetch } from "undici";
 
 async function test() {
-  console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "Set" : "Not Set");
-  console.log("API_KEY:", process.env.API_KEY ? "Set" : "Not Set");
-  
+  console.log("GROQ_API_KEY:", process.env.GROQ_API_KEY ? "Set" : "Not Set");
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-preview",
-      contents: "Hello"
+    const response = await fetch("https://api.groq.ai/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "groq-1",
+        input: "Hello",
+      }),
     });
-    console.log("Success:", response.text);
+
+    const data = await response.json();
+    console.log("Success:", data);
   } catch (e) {
     console.error("Error:", e);
   }
