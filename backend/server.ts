@@ -127,7 +127,7 @@ async function startServer() {
   };
 
   // Auth Routes
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", async (req: any, res: any) => {
     try {
       const { name, email, password, role, organization } = req.body;
       
@@ -163,7 +163,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", async (req: any, res: any) => {
     try {
       const { email, password } = req.body;
 
@@ -205,12 +205,12 @@ async function startServer() {
   });
 
   // API Routes
-  app.get("/api/projects", authenticateToken, (req, res) => {
+  app.get("/api/projects", authenticateToken, (req: any, res: any) => {
     const projects = db.prepare("SELECT * FROM projects ORDER BY createdAt DESC").all();
     res.json(projects);
   });
 
-  app.get("/api/projects/:id", authenticateToken, (req, res) => {
+  app.get("/api/projects/:id", authenticateToken, (req: any, res: any) => {
     const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
     if (project) {
       res.json(project);
@@ -219,7 +219,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/projects", authenticateToken, authorizeRoles('Applicant'), async (req, res) => {
+  app.post("/api/projects", authenticateToken, authorizeRoles('Applicant'), async (req: any, res: any) => {
     const { title, description, applicant, lat, lng, type, area, forestLand, waterUsage, cost, employment, distProtectedArea, emissions, wastewater, solidWaste } = req.body;
     
     let riskScore = 0;
@@ -282,7 +282,7 @@ async function startServer() {
     res.json({ id: info.lastInsertRowid });
   });
 
-  app.put("/api/projects/:id/status", authenticateToken, authorizeRoles('Regulator'), (req, res) => {
+  app.put("/api/projects/:id/status", authenticateToken, authorizeRoles('Regulator'), (req: any, res: any) => {
     const { status, comment } = req.body;
     const update = db.prepare("UPDATE projects SET status = ? WHERE id = ?");
     update.run(status, req.params.id);
@@ -293,12 +293,12 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.get("/api/projects/:id/decisions", authenticateToken, (req, res) => {
+  app.get("/api/projects/:id/decisions", authenticateToken, (req: any, res: any) => {
     const decisions = db.prepare("SELECT * FROM decisions WHERE projectId = ? ORDER BY createdAt DESC").all(req.params.id);
     res.json(decisions);
   });
 
-  app.get("/api/alerts", authenticateToken, (req, res) => {
+  app.get("/api/alerts", authenticateToken, (req: any, res: any) => {
     const alerts = db.prepare(`
       SELECT a.*, p.title as projectTitle 
       FROM alerts a 
@@ -308,12 +308,12 @@ async function startServer() {
     res.json(alerts);
   });
 
-  app.get("/api/reports/:projectId", authenticateToken, (req, res) => {
+  app.get("/api/reports/:projectId", authenticateToken, (req: any, res: any) => {
     const reports = db.prepare("SELECT * FROM reports WHERE projectId = ?").all(req.params.projectId);
     res.json(reports);
   });
 
-  app.post("/api/projects/:id/comments", authenticateToken, authorizeRoles('Citizen'), (req, res) => {
+  app.post("/api/projects/:id/comments", authenticateToken, authorizeRoles('Citizen'), (req: any, res: any) => {
     const { content } = req.body;
     const author = (req as any).user.name;
     const insert = db.prepare("INSERT INTO comments (projectId, author, content) VALUES (?, ?, ?)");
@@ -322,7 +322,7 @@ async function startServer() {
   });
 
   // AI Routes
-  app.post("/api/ai/analyze-risk", authenticateToken, authorizeRoles('Regulator', 'Applicant'), async (req, res) => {
+  app.post("/api/ai/analyze-risk", authenticateToken, authorizeRoles('Regulator', 'Applicant'), async (req: any, res: any) => {
     try {
       if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') {
         return res.json({ score: 50, summary: "Fallback AI Summary: Please configure a valid Gemini API key in the Secrets panel." });
@@ -360,7 +360,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/ai/chat", async (req, res) => {
+  app.post("/api/ai/chat", async (req: any, res: any) => {
     try {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
